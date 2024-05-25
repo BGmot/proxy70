@@ -1,0 +1,82 @@
+---
+all:
+  vars:
+    x_api_token: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          35353461323864633633663332373139643838303466306534353138643830646534356661313563
+          3337333239656662656663663265613030323733653333320a313032613863623664376232326638
+          39663637633261633166323034353031316361386439383966393536323238343533636136366338
+          6364326130356231350a373662333535633132346635346533636239636331626266303366356532
+          62666362633466653132643734306265656231356637643437373739663661393536323636643762
+          37326333316165373839323765306632613539316537346162373230366265376236326637356436
+          65646538323231366662616361316631653031623539383932346630366135393237323833313235
+          32623537383730353732
+    x_linode_tag: Demo-proxy
+    x_linode_region: ca-central
+    x_linode_type: g6-standard-1
+    x_ssh_auth_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC0hUWtb6rMqB4mB1DnNNv9XxGLSE5V7Rgy/Ms4BpOX0nH5+6yzS1GrltBJ1+SOfPUWYCK23ynxUCRT2PPbF0P1RAFYHOsSCvhoDYBU3l/VWvYr/tezqkCP+qRKEBcp5GnoefB6Whvt9QwnmtulCyv+dQQUB4Bz/yj29kBoEntZT2Gv9r8Ang+hn1BpT/ngFbRDGSFmPG6GZBunEl0C0poHkD2ZgUGaKXuvgUaFpDhkUuq10Uhp+zKZN/nBnKHL7Gfi+zPzmyFYqeE2SNgHy5V6sBlJ+B42OJ9vvdvDuyBY/0Q9YQEx1cjqE17XAUuzprC2BPmM4qxEmKpFuA+/Rp/VKlnEviKBqt68dFkHJPT9GomL4YS2w507HIRBTPfF2gDtcig+yZCFYPVFFp4Xxaxo0POQS/aTXXX0JURiu6iWgE0rznuyi2YZ955gu3m43977yoREZY04OgFmYzDM31gE6gTIqoEGTwhEjGX+OY+DKmT0n+UH5SukHj3YMctSlYs= ey@ls1"
+    zabbix_agent_listenip: false
+    zabbix_agent2: true
+    zabbix_agent2_server: "{{ x_zabbix_server_ip }}"
+    zabbix_agent2_serveractive: "{{ x_zabbix_server_ip }}"
+    x_zabbix_username: Admin
+    x_zabbix_password: zabbix
+    ansible_httpapi_pass: "{{ x_zabbix_password }}"
+    x_custom_templates_files: []
+    x_templates: []
+databases:
+  hosts:
+    zabbix-db01:
+      x_linode_type: g6-standard-2
+zabbix_servers:
+  hosts:
+    zabbix-server01:
+app_servers:
+  vars:
+    zabbix_agent2_server: "{{ x_zabbix_proxy1_ip }},{{ x_zabbix_proxy2_ip }}"
+    zabbix_agent2_serveractive: "{{ x_zabbix_proxy1_ip }},{{ x_zabbix_proxy2_ip }}"
+  hosts:
+    app01:
+    app02:
+frontends:
+  vars:
+    apache_mods_enabled:
+    - rewrite
+    - status
+  hosts:
+    zabbix-web01:
+proxies:
+  vars:
+    zabbix_proxy_server: "{{ x_zabbix_server_ip }}"
+    zabbix_proxy_manage_service: true
+    zabbix_proxy_database: sqlite3
+  hosts:
+    zabbix-proxy01:
+      zabbix_proxy_hostname: "{{ x_zabbix_proxy1_ip }}"
+      zabbix_agent2_server: "{{ x_zabbix_proxy1_ip }}"
+      zabbix_agent2_serveractive: "{{ x_zabbix_proxy1_ip }}"
+    zabbix-proxy02:
+      zabbix_proxy_hostname: "{{ x_zabbix_proxy2_ip }}"
+      zabbix_agent2_server: "{{ x_zabbix_proxy2_ip }}"
+      zabbix_agent2_serveractive: "{{ x_zabbix_proxy2_ip }}"
+zabbix:
+  hosts:
+    zabbix-db01:
+      postgresql_global_config_options:
+      - option: log_directory
+        value: 'log'
+      - option: listen_addresses
+        value: "127.0.0.1,{{ x_zabbix_db_ip }}"
+      postgresql_hba_entries:
+      - {type: local, database: all, user: postgres, auth_method: peer}
+      - {type: local, database: all, user: all, auth_method: peer}
+      - {type: host, database: all, user: all, address: '127.0.0.1/32', auth_method: "{{ postgresql_auth_method }}"}
+      - {type: host, database: all, user: all, address: '::1/128', auth_method: "{{ postgresql_auth_method }}"}
+      - {type: host, database: zabbix-server, user: zabbix-server, address: "{{ x_zabbix_server_ip }}/32", auth_method: "{{ postgresql_auth_method }}"}
+      - {type: host, database: zabbix-server, user: zabbix-server, address: "{{ x_zabbix_web_ip }}/32", auth_method: "{{ postgresql_auth_method }}"}
+    zabbix-server01:
+      zabbix_server_dbhost: "{{ x_zabbix_db_ip }}"
+    zabbix-web01:
+      zabbix_server_name: proxy-demo
+      zabbix_server_hostname: "{{ x_zabbix_server_ip }}"
+      zabbix_server_dbhost: "{{ x_zabbix_db_ip }}"

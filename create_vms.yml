@@ -1,0 +1,32 @@
+---
+# Create all instances
+- hosts: all
+  gather_facts: false
+  tasks:
+  - ansible.builtin.include_role:
+      name: roles/infra_create
+
+  - name: Initialize variables with all IP addresses
+    set_fact:
+      x_zabbix_db_ip: "{{ hostvars['zabbix-db01']['ansible_host'] }}"
+      x_zabbix_server_ip: "{{ hostvars['zabbix-server01']['ansible_host'] }}"
+      x_zabbix_web_ip: "{{ hostvars['zabbix-web01']['ansible_host'] }}"
+      x_zabbix_proxy1_ip: "{{ hostvars['zabbix-proxy01']['ansible_host'] }}"
+      x_zabbix_proxy2_ip: "{{ hostvars['zabbix-proxy02']['ansible_host'] }}"
+      x_app01_ip: "{{ hostvars['app01']['ansible_host'] }}"
+      x_app02_ip: "{{ hostvars['app02']['ansible_host'] }}"
+
+# Exectute post-deployment tasks
+- hosts: all
+  gather_facts: false
+  tasks:
+  - name: Wait 120 seconds for target connection to become available/usable
+    ansible.builtin.wait_for_connection:
+      timeout: 120
+
+# Install Zabbix agent
+- hosts: all
+  gather_facts: true
+  tasks:
+  - ansible.builtin.include_role:
+      name: community.zabbix.zabbix_agent

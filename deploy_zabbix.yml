@@ -1,0 +1,65 @@
+---
+- hosts: zabbix:proxies
+  gather_facts: false
+  tasks:
+  - name: Get information about instance 
+    linode.cloud.instance_info:
+      api_token: "{{ x_api_token }}"
+      label: "{{ inventory_hostname }}"
+    register: out
+    delegate_to: localhost
+
+  - set_fact:
+      ansible_host: "{{ out.instance.ipv4[0] }}"
+
+  - name: Initialize variables with all IP addresses
+    run_once: true
+    set_fact:
+      x_zabbix_db_ip: "{{ hostvars['zabbix-db01']['ansible_host'] }}"
+      x_zabbix_server_ip: "{{ hostvars['zabbix-server01']['ansible_host'] }}"
+      x_zabbix_web_ip: "{{ hostvars['zabbix-web01']['ansible_host'] }}"
+      x_zabbix_proxy1_ip: "{{ hostvars['zabbix-proxy01']['ansible_host'] }}"
+      x_zabbix_proxy2_ip: "{{ hostvars['zabbix-proxy02']['ansible_host'] }}"
+
+# Install PostgreSQL
+- hosts: zabbix-db01
+  gather_facts: true
+  tasks:
+  - name: Install psycopg2 package needed by postgresql role
+    ansible.builtin.package:
+      name: python3-psycopg2
+      update_cache: true
+
+  - ansible.builtin.include_role:
+      name: geerlingguy.postgresql
+
+# Install Zabbix server
+- hosts: zabbix-server01
+  gather_facts: true
+  tasks:
+  - ansible.builtin.include_role:
+      name: community.zabbix.zabbix_server
+
+# Install Zabbix Web
+- hosts: zabbix-web01
+  gather_facts: true
+  tasks:
+  - ansible.builtin.include_role:
+      name: geerlingguy.php
+    vars:
+      php_packages:
+      - php
+      - php-fpm
+
+  - ansible.builtin.include_role:
+      name: geerlingguy.apache-php-fpm
+
+  - ansible.builtin.include_role:
+      name: community.zabbix.zabbix_web
+
+# Install Zabbix Proxy
+- hosts: proxies
+  gather_facts: true
+  tasks:
+  - ansible.builtin.include_role:
+      name: community.zabbix.zabbix_proxy
